@@ -16,22 +16,14 @@ static spi_device_handle_t handle_spi;   // SPI handle.
 static i2c_cmd_handle_t handle_i2c;      // I2C handle.
 static u8g2_esp32_hal_t u8g2_esp32_hal;  // HAL state data.
 
-#undef ESP_ERROR_CHECK
-#define ESP_ERROR_CHECK(x)                   \
-  do {                                       \
-    esp_err_t rc = (x);                      \
-    if (rc != ESP_OK) {                      \
-      ESP_LOGE("err", "esp_err_t = %d", rc); \
-      assert(0 && #x);                       \
-    }                                        \
-  } while (0);
+#define HOST SPI2_HOST
 
 /*
  * Initialze the ESP32 HAL.
  */
 void u8g2_esp32_hal_init(u8g2_esp32_hal_t u8g2_esp32_hal_param) {
   u8g2_esp32_hal = u8g2_esp32_hal_param;
-}  // u8g2_esp32_hal_init
+}
 
 /*
  * HAL callback function as prescribed by the U8G2 library.  This callback is
@@ -51,46 +43,36 @@ uint8_t u8g2_esp32_spi_byte_cb(u8x8_t* u8x8,
       break;
 
     case U8X8_MSG_BYTE_INIT: {
-      if (u8g2_esp32_hal.clk == U8G2_ESP32_HAL_UNDEFINED ||
-          u8g2_esp32_hal.mosi == U8G2_ESP32_HAL_UNDEFINED ||
-          u8g2_esp32_hal.cs == U8G2_ESP32_HAL_UNDEFINED) {
+      if (u8g2_esp32_hal.bus.spi.clk == U8G2_ESP32_HAL_UNDEFINED ||
+          u8g2_esp32_hal.bus.spi.mosi == U8G2_ESP32_HAL_UNDEFINED ||
+          u8g2_esp32_hal.bus.spi.cs == U8G2_ESP32_HAL_UNDEFINED) {
         break;
       }
 
-      spi_bus_config_t bus_config;
-      memset(&bus_config, 0, sizeof(spi_bus_config_t));
-      bus_config.sclk_io_num = u8g2_esp32_hal.clk;   // CLK
-      bus_config.mosi_io_num = u8g2_esp32_hal.mosi;  // MOSI
-      bus_config.miso_io_num = -1;                   // MISO
-      bus_config.quadwp_io_num = -1;                 // Not used
-      bus_config.quadhd_io_num = -1;                 // Not used
-      // ESP_LOGI(TAG, "... Initializing bus.");
-      ESP_ERROR_CHECK(spi_bus_initialize(HSPI_HOST, &bus_config, 1));
+      spi_bus_config_t bus_config = {
+        .sclk_io_num = u8g2_esp32_hal.bus.spi.clk,   // CLK
+        .mosi_io_num = u8g2_esp32_hal.bus.spi.mosi,  // MOSI
+        .miso_io_num = GPIO_NUM_NC,                  // MISO
+        .quadwp_io_num = GPIO_NUM_NC,                // Not used
+        .quadhd_io_num = GPIO_NUM_NC,                // Not used
+      };
+      ESP_LOGD(TAG, "... Initializing bus.");
+      ESP_ERROR_CHECK(spi_bus_initialize(HOST, &bus_config, 1));
 
       spi_device_interface_config_t dev_config = {
-        .address_bits = 0,
-        .command_bits = 0,
-        .dummy_bits = 0,
-        .mode = 0,
-        .duty_cycle_pos = 0,
-        .cs_ena_posttrans = 0,
-        .cs_ena_pretrans = 0,
-        .clock_speed_hz = u8g2_esp32_hal.spi_clock_speed,
-        .clock_source = SPI_CLK_SRC_DEFAULT,
-        .spics_io_num = u8g2_esp32_hal.cs,
-        .flags = u8g2_esp32_hal.spi_flags,
-        .queue_size = 200,
-        .pre_cb = NULL,
-        .post_cb = NULL,
+        .clock_speed_hz = u8g2_esp32_hal.bus.spi.clock_speed_hz,
+        .spics_io_num = u8g2_esp32_hal.bus.spi.cs,
+        .flags = u8g2_esp32_hal.bus.spi.flags,
+        .queue_size = 200
       };
-      // ESP_LOGI(TAG, "... Adding device bus.");
+      ESP_LOGD(TAG, "... Adding device bus.");
       ESP_ERROR_CHECK(spi_bus_add_device(HSPI_HOST, &dev_config, &handle_spi));
 
       break;
     }
 
     case U8X8_MSG_BYTE_SEND: {
-      spi_transaction_t trans_desc;
+      spi_transaction_t trans_desc = {0};
       trans_desc.addr = 0;
       trans_desc.cmd = 0;
       trans_desc.flags = 0;
@@ -99,13 +81,13 @@ uint8_t u8g2_esp32_spi_byte_cb(u8x8_t* u8x8,
       trans_desc.tx_buffer = arg_ptr;
       trans_desc.rx_buffer = NULL;
 
-      // ESP_LOGI(TAG, "... Transmitting %d bytes.", arg_int);
+      ESP_LOGD(TAG, "... Transmitting %d bytes.", arg_int);
       ESP_ERROR_CHECK(spi_device_transmit(handle_spi, &trans_desc));
       break;
     }
   }
   return 0;
-}  // u8g2_esp32_spi_byte_cb
+}
 
 /*
  * HAL callback function as prescribed by the U8G2 library.  This callback is
@@ -127,18 +109,18 @@ uint8_t u8g2_esp32_i2c_byte_cb(u8x8_t* u8x8,
     }
 
     case U8X8_MSG_BYTE_INIT: {
-      if (u8g2_esp32_hal.sda == U8G2_ESP32_HAL_UNDEFINED ||
-          u8g2_esp32_hal.scl == U8G2_ESP32_HAL_UNDEFINED) {
+      if (u8g2_esp32_hal.bus.i2c.sda == U8G2_ESP32_HAL_UNDEFINED ||
+          u8g2_esp32_hal.bus.i2c.scl == U8G2_ESP32_HAL_UNDEFINED) {
         break;
       }
 
       i2c_config_t conf = {0};
       conf.mode = I2C_MODE_MASTER;
-      ESP_LOGI(TAG, "sda_io_num %d", u8g2_esp32_hal.sda);
-      conf.sda_io_num = u8g2_esp32_hal.sda;
+      ESP_LOGI(TAG, "sda_io_num %d", u8g2_esp32_hal.bus.i2c.sda);
+      conf.sda_io_num = u8g2_esp32_hal.bus.i2c.sda;
       conf.sda_pullup_en = GPIO_PULLUP_ENABLE;
-      ESP_LOGI(TAG, "scl_io_num %d", u8g2_esp32_hal.scl);
-      conf.scl_io_num = u8g2_esp32_hal.scl;
+      ESP_LOGI(TAG, "scl_io_num %d", u8g2_esp32_hal.bus.i2c.scl);
+      conf.scl_io_num = u8g2_esp32_hal.bus.i2c.scl;
       conf.scl_pullup_en = GPIO_PULLUP_ENABLE;
       ESP_LOGI(TAG, "clk_speed %d", I2C_MASTER_FREQ_HZ);
       conf.master.clk_speed = I2C_MASTER_FREQ_HZ;
@@ -178,13 +160,13 @@ uint8_t u8g2_esp32_i2c_byte_cb(u8x8_t* u8x8,
       ESP_LOGD(TAG, "End I2C transfer.");
       ESP_ERROR_CHECK(i2c_master_stop(handle_i2c));
       ESP_ERROR_CHECK(i2c_master_cmd_begin(I2C_MASTER_NUM, handle_i2c,
-                                           I2C_TIMEOUT_MS / portTICK_PERIOD_MS));
+                                           pdMS_TO_TICKS(I2C_TIMEOUT_MS)));
       i2c_cmd_link_delete(handle_i2c);
       break;
     }
   }
   return 0;
-}  // u8g2_esp32_i2c_byte_cb
+}
 
 /*
  * HAL callback function as prescribed by the U8G2 library.  This callback is
@@ -209,8 +191,8 @@ uint8_t u8g2_esp32_gpio_and_delay_cb(u8x8_t* u8x8,
       if (u8g2_esp32_hal.reset != U8G2_ESP32_HAL_UNDEFINED) {
         bitmask = bitmask | (1ull << u8g2_esp32_hal.reset);
       }
-      if (u8g2_esp32_hal.cs != U8G2_ESP32_HAL_UNDEFINED) {
-        bitmask = bitmask | (1ull << u8g2_esp32_hal.cs);
+      if (u8g2_esp32_hal.bus.spi.cs != U8G2_ESP32_HAL_UNDEFINED) {
+        bitmask = bitmask | (1ull << u8g2_esp32_hal.bus.spi.cs);
       }
 
       if (bitmask == 0) {
@@ -234,21 +216,21 @@ uint8_t u8g2_esp32_gpio_and_delay_cb(u8x8_t* u8x8,
       break;
       // Set the GPIO client select pin to the value passed in through arg_int.
     case U8X8_MSG_GPIO_CS:
-      if (u8g2_esp32_hal.cs != U8G2_ESP32_HAL_UNDEFINED) {
-        gpio_set_level(u8g2_esp32_hal.cs, arg_int);
+      if (u8g2_esp32_hal.bus.spi.cs != U8G2_ESP32_HAL_UNDEFINED) {
+        gpio_set_level(u8g2_esp32_hal.bus.spi.cs, arg_int);
       }
       break;
       // Set the Software I²C pin to the value passed in through arg_int.
     case U8X8_MSG_GPIO_I2C_CLOCK:
-      if (u8g2_esp32_hal.scl != U8G2_ESP32_HAL_UNDEFINED) {
-        gpio_set_level(u8g2_esp32_hal.scl, arg_int);
+      if (u8g2_esp32_hal.bus.i2c.scl != U8G2_ESP32_HAL_UNDEFINED) {
+        gpio_set_level(u8g2_esp32_hal.bus.i2c.scl, arg_int);
         //				printf("%c",(arg_int==1?'C':'c'));
       }
       break;
       // Set the Software I²C pin to the value passed in through arg_int.
     case U8X8_MSG_GPIO_I2C_DATA:
-      if (u8g2_esp32_hal.sda != U8G2_ESP32_HAL_UNDEFINED) {
-        gpio_set_level(u8g2_esp32_hal.sda, arg_int);
+      if (u8g2_esp32_hal.bus.i2c.sda != U8G2_ESP32_HAL_UNDEFINED) {
+        gpio_set_level(u8g2_esp32_hal.bus.i2c.sda, arg_int);
         //				printf("%c",(arg_int==1?'D':'d'));
       }
       break;
@@ -259,4 +241,4 @@ uint8_t u8g2_esp32_gpio_and_delay_cb(u8x8_t* u8x8,
       break;
   }
   return 0;
-}  // u8g2_esp32_gpio_and_delay_cb
+}

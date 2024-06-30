@@ -1,0 +1,5 @@
+dependencies:
+  ## Required IDF version
+  idf: ">=5.0"
+  u8g2_hal_esp_idf:
+    override_path: "../../../"
