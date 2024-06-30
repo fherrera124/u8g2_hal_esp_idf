@@ -16,6 +16,8 @@
 #include "driver/spi_master.h"
 
 #define U8G2_ESP32_HAL_UNDEFINED (-1)
+#define U8G2_ESP32_SPI_FLAGS 0
+#define U8G2_ESP32_SPI_CLOCK_SPEED 10000
 
 #define I2C_MASTER_NUM I2C_NUM_1     //  I2C port number for master dev
 #define I2C_MASTER_TX_BUF_DISABLE 0  //  I2C master do not need buffer
@@ -32,6 +34,8 @@ typedef struct {
   gpio_num_t cs;
   gpio_num_t reset;
   gpio_num_t dc;
+  uint32_t spi_flags;
+  int spi_clock_speed;
 } u8g2_esp32_hal_t;
 
 #define U8G2_ESP32_HAL_DEFAULT                              \
@@ -39,7 +43,8 @@ typedef struct {
     U8G2_ESP32_HAL_UNDEFINED, U8G2_ESP32_HAL_UNDEFINED,     \
         U8G2_ESP32_HAL_UNDEFINED, U8G2_ESP32_HAL_UNDEFINED, \
         U8G2_ESP32_HAL_UNDEFINED, U8G2_ESP32_HAL_UNDEFINED, \
-        U8G2_ESP32_HAL_UNDEFINED                            \
+        U8G2_ESP32_HAL_UNDEFINED, U8G2_ESP32_SPI_FLAGS,     \
+        U8G2_ESP32_SPI_CLOCK_SPEED                          \
   }
 
 void u8g2_esp32_hal_init(u8g2_esp32_hal_t u8g2_esp32_hal_param);
