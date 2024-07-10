@@ -72,14 +72,10 @@ uint8_t u8g2_esp32_spi_byte_cb(u8x8_t* u8x8,
     }
 
     case U8X8_MSG_BYTE_SEND: {
-      spi_transaction_t trans_desc = {0};
-      trans_desc.addr = 0;
-      trans_desc.cmd = 0;
-      trans_desc.flags = 0;
-      trans_desc.length = 8 * arg_int;  // Number of bits NOT number of bytes.
-      trans_desc.rxlength = 0;
-      trans_desc.tx_buffer = arg_ptr;
-      trans_desc.rx_buffer = NULL;
+      spi_transaction_t trans_desc = {
+        .trans_desc.length = 8 * arg_int,  // Number of bits NOT number of bytes.
+        .trans_desc.tx_buffer = arg_ptr
+      };
 
       ESP_LOGD(TAG, "... Transmitting %d bytes.", arg_int);
       ESP_ERROR_CHECK(spi_device_transmit(handle_spi, &trans_desc));
@@ -116,17 +112,17 @@ uint8_t u8g2_esp32_i2c_byte_cb(u8x8_t* u8x8,
 
       i2c_config_t conf = {0};
       conf.mode = I2C_MODE_MASTER;
-      ESP_LOGI(TAG, "sda_io_num %d", u8g2_esp32_hal.bus.i2c.sda);
+      ESP_LOGD(TAG, "sda_io_num %d", u8g2_esp32_hal.bus.i2c.sda);
       conf.sda_io_num = u8g2_esp32_hal.bus.i2c.sda;
       conf.sda_pullup_en = GPIO_PULLUP_ENABLE;
-      ESP_LOGI(TAG, "scl_io_num %d", u8g2_esp32_hal.bus.i2c.scl);
+      ESP_LOGD(TAG, "scl_io_num %d", u8g2_esp32_hal.bus.i2c.scl);
       conf.scl_io_num = u8g2_esp32_hal.bus.i2c.scl;
       conf.scl_pullup_en = GPIO_PULLUP_ENABLE;
-      ESP_LOGI(TAG, "clk_speed %d", I2C_MASTER_FREQ_HZ);
+      ESP_LOGD(TAG, "clk_speed %d", I2C_MASTER_FREQ_HZ);
       conf.master.clk_speed = I2C_MASTER_FREQ_HZ;
-      ESP_LOGI(TAG, "i2c_param_config %d", conf.mode);
+      ESP_LOGD(TAG, "i2c_param_config %d", conf.mode);
       ESP_ERROR_CHECK(i2c_param_config(I2C_MASTER_NUM, &conf));
-      ESP_LOGI(TAG, "i2c_driver_install %d", I2C_MASTER_NUM);
+      ESP_LOGD(TAG, "i2c_driver_install %d", I2C_MASTER_NUM);
       ESP_ERROR_CHECK(i2c_driver_install(I2C_MASTER_NUM, conf.mode,
                                          I2C_MASTER_RX_BUF_DISABLE,
                                          I2C_MASTER_TX_BUF_DISABLE, 0));
@@ -237,7 +233,7 @@ uint8_t u8g2_esp32_gpio_and_delay_cb(u8x8_t* u8x8,
 
       // Delay for the number of milliseconds passed in through arg_int.
     case U8X8_MSG_DELAY_MILLI:
-      vTaskDelay(arg_int / portTICK_PERIOD_MS);
+      vTaskDelay(pdMS_TO_TICKS(arg_int));
       break;
   }
   return 0;
