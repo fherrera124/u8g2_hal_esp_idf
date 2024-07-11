@@ -3,7 +3,7 @@
 #include <esp_log.h>
 #include <stdio.h>
 
-static const char* TAG = "test_st7920";
+static const char* TAG = "st7920_example";
 
 void app_main()
 {

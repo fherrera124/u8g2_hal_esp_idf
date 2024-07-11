@@ -4,5 +4,5 @@ dependencies:
   idf: ">=5.0"
   u8g2:
     git: https://github.com/fherrera124/u8g2
-    version: fherrera124-fix-st7920
+    version: latest
     require: public

@@ -73,8 +73,8 @@ uint8_t u8g2_esp32_spi_byte_cb(u8x8_t* u8x8,
 
     case U8X8_MSG_BYTE_SEND: {
       spi_transaction_t trans_desc = {
-        .trans_desc.length = 8 * arg_int,  // Number of bits NOT number of bytes.
-        .trans_desc.tx_buffer = arg_ptr
+        .length = 8 * arg_int,  // Number of bits NOT number of bytes.
+        .tx_buffer = arg_ptr
       };
 
       ESP_LOGD(TAG, "... Transmitting %d bytes.", arg_int);

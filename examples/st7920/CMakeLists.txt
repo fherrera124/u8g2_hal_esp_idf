@@ -6,4 +6,4 @@ include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 
 set(COMPONENTS main)
 
-project(test_st7920)
+project(st7920)
